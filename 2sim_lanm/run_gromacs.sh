@@ -139,12 +139,6 @@ else
     conda env export --name $ENV_NAME > "$ENV_EXPORT_FILE_NAME.yml"
 fi
 
-# conda create -n $ENV_NAME --clone ../md-intro-tutorial
-# conda activate $ENV_NAME
-
-# conda env export --name $ENV_NAME > environment.yml
-
-
 
 #STEP 0.1 - Clean up input, do QC, remove crystallized bounded WATER (HOH) molecules... grep... e.g grep -v HOH input/1aki.pdb > input/1aki_cleaned.pdb
 grep -v HOH $PDB > $MOLECULE_FILE_NAME"_cleaned.pdb"

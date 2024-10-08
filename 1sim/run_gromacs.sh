@@ -1,5 +1,24 @@
 #!/bin/sh
+#
+# Run a Molecular Dynamics simulation from start to finish
+# using GROMACS
+# Working with the md-tutorial lysozyme-in-water simulation
+# http://www.mdtutorials.com/gmx/lysozyme/index.html
+#
+#
+# To Use:
+# Run run_gromacs.sh first...
+# Run run_collect_results.sh second to move files into results dir
+# The to delete all run-generated files and have a clean slate 
+# Use this script anyhow you like as a reference or base to create your own scripts
+# 
+#
+# 
+# @author Faith Olusegun (propenster) <propenster@proton.me>
+# ----------------------------------------------------------------------
 
+
+#VARIABLES
 
 ENV_NAME=lysozome-in-water
 ENV_EXPORT_FILE_NAME=environment
@@ -26,8 +45,21 @@ PE_RESULT_FILE_NAME=potential
 XM_GRACE_PACKAGE_NAME=grace
 TEMPERATURE_RESULT_FILE_NAME=temperature
 PRESSURE_RESULT_FILE_NAME=pressure
+DENSITY_RESULT_FILE_NAME=density
 NVT_MDP_FILE_NAME=nvt
 NVT_MDP_FILE_DOWNLOAD_URL=http://www.mdtutorials.com/gmx/lysozyme/Files/$NVT_MDP_FILE_NAME".mdp"
+
+#this one is for pressure Equilibriation... nvt was for temperature
+NPT_MDP_FILE_NAME=npt
+NPT_MDP_FILE_DOWNLOAD_URL=http://www.mdtutorials.com/gmx/lysozyme/Files/$NPT_MDP_FILE_NAME".mdp"
+
+#PRODUCTION STUFF FROM HERE...
+PROD_MD_FILE_NAME=md
+PROD_MD_FILE_DOWNLOAD_URL=http://www.mdtutorials.com/gmx/lysozyme/Files/$PROD_MD_FILE_NAME".mdp"
+PROD_MD_OUTPUT_FILE_NAME=md_0_1
+RMSD_RESULT_FILE_NAME=rmsd
+RADIUS_OF_GYRATION_RESULT_FILE_NAME=gyrate
+
 
 
 echo 'Running molecular simulation with parameters'
@@ -53,6 +85,16 @@ echo 'XM_GRACE_PACKAGE_NAME: '$XM_GRACE_PACKAGE_NAME
 echo 'TEMPERATURE_RESULT_FILE_NAME: '$TEMPERATURE_RESULT_FILE_NAME
 echo 'PRESSURE_RESULT_FILE_NAME: '$PRESSURE_RESULT_FILE_NAME
 echo 'NVT_MDP_FILE_NAME: '$NVT_MDP_FILE_NAME
+echo 'NVT_MDP_FILE_DOWNLOAD_URL: '$NVT_MDP_FILE_DOWNLOAD_URL
+
+echo 'NPT_MDP_FILE_NAME: '$NPT_MDP_FILE_NAME
+echo 'NPT_MDP_FILE_DOWNLOAD_URL: '$NPT_MDP_FILE_DOWNLOAD_URL
+
+#prod param
+echo 'PROD_MD_FILE_NAME: '$PROD_MD_FILE_NAME
+echo 'PROD_MD_FILE_DOWNLOAD_URL: '$PROD_MD_FILE_DOWNLOAD_URL
+echo 'RMSD_RESULT_FILE_NAME: '$RMSD_RESULT_FILE_NAME
+echo 'RADIUS_OF_GYRATION_RESULT_FILE_NAME: '$RADIUS_OF_GYRATION_RESULT_FILE_NAME
 
 
 
@@ -76,6 +118,12 @@ wget $MINIM_FILE_DOWNLOAD_URL -O $MINIM_FILE_NAME".mdp"
 
 echo 'Downloading nvt.mdp file that we will later need for the Equilibriation step...'
 wget $NVT_MDP_FILE_DOWNLOAD_URL -O $NVT_MDP_FILE_NAME".mdp"
+
+echo 'Downloading npt.mdp file that we will later need for the pressure Equilibriation step...'
+wget $NPT_MDP_FILE_DOWNLOAD_URL -O $NPT_MDP_FILE_NAME".mdp"
+
+echo 'Downloading md.mdp file that we will later need for the Production MD step...'
+wget $PROD_MD_FILE_DOWNLOAD_URL -O $PROD_MD_FILE_NAME".mdp"
 
 #INSTALLING SYSTEM SOFTWARE NEEDED...e.g XmGrace
 echo 'Installing XmGrace: ...system software needed for plotting the potential energy graph after energy minimization'
@@ -139,10 +187,6 @@ else
     conda env export --name $ENV_NAME > "$ENV_EXPORT_FILE_NAME.yml"
 fi
 
-# conda create -n $ENV_NAME --clone ../md-intro-tutorial
-# conda activate $ENV_NAME
-
-# conda env export --name $ENV_NAME > environment.yml
 
 
 
@@ -172,7 +216,7 @@ $GMX grompp -f $IONS_FILE_NAME".mdp" -c $OUTPUT_DIR/$MOLECULE_FILE_NAME"_solv.gr
 
 #STEP 3.2 - Now we have an atomic-level description of our system in binary file ions.tpr, we can pass this file to genion to add ions
 #e.g - gmx genion -s ions.tpr -o 1AKI_solv_ions.gro -p topol.top -pname NA -nname CL -neutral
-$GMX genion -s $OUTPUT_DIR/$IONS_FILE_NAME".tpr" -o $OUTPUT_DIR/$MOLECULE_FILE_NAME"_solv_ions.gro" -p $OUTPUT_DIR/"topol.top" -pname NA -nname CL -neutral
+echo '13' | $GMX genion -s $OUTPUT_DIR/$IONS_FILE_NAME".tpr" -o $OUTPUT_DIR/$MOLECULE_FILE_NAME"_solv_ions.gro" -p $OUTPUT_DIR/"topol.top" -pname NA -nname CL -neutral
 
 
 
@@ -197,17 +241,17 @@ $GMX mdrun -v -deffnm $ENERGY_MINIMIZATION_FILE_NAME
 #STEP 4.3 - Generate Analysis for the energy changes through the EM process - potential energy graph - item 10 0
 #e.g gmx energy -f em.edr -o potential.xvg
 echo 'Generate Analysis for the energy changes through the EM process - potential energy graph'
-$GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $PE_RESULT_FILE_NAME".xvg"
+echo '10 0' | $GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $PE_RESULT_FILE_NAME".xvg"
 
 #STEP 4.3b - Plot Generate Analysis for the temperature graph - item 31 0
 #e.g gmx energy -f em.edr -o temperature.xvg
 echo 'Generate Analysis for the temperature changes through the EM process - temperature graph'
-$GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $TEMPERATURE_RESULT_FILE_NAME".xvg"
+echo '31 0' | $GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $TEMPERATURE_RESULT_FILE_NAME".xvg"
 
 #STEP 4.3c - Plot Generate Analysis for the pressure graph - item 11
 #e.g gmx energy -f em.edr -o pressure.xvg
 echo 'Generate Analysis for the pressure changes through the EM process - pressure graph'
-$GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $PRESSURE_RESULT_FILE_NAME".xvg"
+echo '11 0' |$GMX energy -f $ENERGY_MINIMIZATION_FILE_NAME".edr" -o $PRESSURE_RESULT_FILE_NAME".xvg"
 
 
 
@@ -233,14 +277,124 @@ xmgrace pressure.xvg -title "Energy Minimization - Pressure Graph"
 $GMX grompp -f $NVT_MDP_FILE_NAME".mdp" -c em.gro -r em.gro -p $OUTPUT_DIR/"topol.top" -o $NVT_MDP_FILE_NAME".tpr"
 
 #STEP 5.2 - 
-$GMX mdrun -deffnm nvt
+$GMX mdrun -deffnm $NVT_MDP_FILE_NAME
 
 #Let's analyze the temperature progression, again using energy:
 #Type "16 0" at the prompt to select the temperature of the system and exit.
-$GMX energy -f $NVT_MDP_FILE_NAME".edr" -o $TEMPERATURE_RESULT_FILE_NAME"_1.xvg"
+echo '16 0' | $GMX energy -f $NVT_MDP_FILE_NAME".edr" -o $TEMPERATURE_RESULT_FILE_NAME"_1.xvg"
 
 #replot temperature graph...
-xmgrace temperature.xvg -title "Energy Minimization - Temperature Graph"
+xmgrace $TEMPERATURE_RESULT_FILE_NAME"_1.xvg" -title "Temperature Graph 1aki NVT Equilibriation"
+
+
+
+
+
+#STEP 6 - Equilibriation Part 2
+#The previous step, NVT equilibration, stabilized the temperature of the system. Prior to data collection, we must also stabilize the pressure (and thus also the density) of the system. Equilibration of pressure is conducted under an NPT ensemble, wherein the Number of particles, Pressure, and Temperature are all constant. The ensemble is also called the "isothermal-isobaric" ensemble, and most closely resembles experimental conditions.
+
+#STEP 6.1 - Assemble npt tpr
+#The .mdp file used for a 100-ps NPT equilibration can be found here - http://www.mdtutorials.com/gmx/lysozyme/Files/npt.mdp
+#We will call grompp and mdrun just as we did for NVT equilibration. Note that we are now including the -t flag to include the checkpoint file from the NVT equilibration; this file contains all the necessary state variables to continue our simulation. To conserve the velocities produced during NVT, we must include this file. The coordinate file (-c) is the final output of the NVT simulation.
+
+#e.g - $GMX grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr
+$GMX grompp -f $NPT_MDP_FILE_NAME".mdp" -c $NVT_MDP_FILE_NAME".gro" -r $NVT_MDP_FILE_NAME".gro" -t $NVT_MDP_FILE_NAME".cpt" -p $OUTPUT_DIR/"topol.top" -o $NPT_MDP_FILE_NAME".tpr"
+
+#STEP 6.2 - Run mdrun for npt just like we did earlier for nvt...
+$GMX mdrun -deffnm $NPT_MDP_FILE_NAME
+
+#STEP 6.3 - Let's analyze the pressure progression, again using energy:
+#e.g - gmx energy -f npt.edr -o pressure.xvg
+echo '18 0' | $GMX energy -f $NPT_MDP_FILE_NAME".edr" -o $PRESSURE_RESULT_FILE_NAME"_1.xvg"
+
+#replot pressure graph...
+xmgrace $PRESSURE_RESULT_FILE_NAME"_1.xvg" -title "Presure Graph 1aki NPT Equilibriation"
+
+
+#The pressure value fluctuates widely over the course of the 100-ps equilibration phase, but this behavior is not unexpected. 
+#Let's take a look at density as well, this time using energy and entering "24 0" at the prompt.
+
+#STEP 6.4 - Let's analyze density progression too, using energy:
+#e.g - gmx energy -f npt.edr -o density.xvg
+echo '24 0' | $GMX energy -f $NPT_MDP_FILE_NAME".edr" -o $DENSITY_RESULT_FILE_NAME"_1.xvg"
+
+#replot density graph...
+xmgrace $DENSITY_RESULT_FILE_NAME"_1.xvg" -title "Density Graph 1aki NPT Equilibriation"
+
+
+
+echo 'I think simulation ends here.... We go onto Production MD'
+
+
+
+
+#====================================================================================
+#============
+#============                     P R O D U C T I O N
+#============
+#====================================================================================
+# BE SURE YOU ARE USING AN HPC INSTANCE FROM HERE ON, IT MIGHT TAKE DAYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYZ WITH PLURAL ZZZZZZZZZZZZZZZZZZZZZZZZ
+# USE HPC OR DIE TRYING
+
+
+#Upon completion of the two equilibration phases, the system is now well-equilibrated at the desired temperature and pressure. We are now ready to release the position restraints and run production MD for data collection. The process is just like we have seen before, as we will make use of the checkpoint file (which in this case now contains preserve pressure coupling information) to grompp.
+# WE fetch the PRODUCTION md.mdp file - http://www.mdtutorials.com/gmx/lysozyme/Files/md.mdp
+
+
+#STEP 7 - Release all position restraint and get ready to RUN Production MD for our study's DATA COLLECTION
+#gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_0_1.tpr
+#STEP 7.1 - Generate prod tpr file md_0_1.tpr
+$GMX grompp -f $PROD_MD_FILE_NAME".mdp" -c $NPT_MDP_FILE_NAME".gro" -t $NPT_MDP_FILE_NAME".cpt" -p $OUTPUT_DIR/"topol.top" -o $PROD_MD_OUTPUT_FILE_NAME".tpr"
+
+#STEP 7.2 - run mdrun again 
+#e.g - gmx mdrun -deffnm md_0_1
+$GMX mdrun -deffnm $PROD_MD_OUTPUT_FILE_NAME
+
+#ALTERNATIVELY, if we wanted to run STEP 7.2 on GPU, just pass -nb gpu to mdrun command like below:
+#e.g - gmx mdrun -deffnm md_0_1 -nb gpu
+
+
+
+echo 'We are finally done after who knows 4 days or what? good. On to Data Analysis now...'
+
+
+
+#====================================================================================
+#============
+#============                     DATA ANALYSIS
+#============
+#====================================================================================
+
+
+#STEP 8 Now that we have simulated our protein, we should run some analysis on the system. What types of data are important? This is an important question to ask before running the simulation, so you should have some ideas about the types of data you will want to collect in your own systems. For this tutorial, a few basic tools will be introduced.
+
+#The first is trjconv, which is used as a post-processing tool to strip out coordinates, correct for periodicity, or manually alter the trajectory (time units, frame frequency, etc). For this exercise, we will use trjconv to account for any periodicity in the system. The protein will diffuse through the unit cell, and may appear "broken" or may "jump" across to the other side of the box. To account for such behaviors, issue the following:
+
+#STEP 8.1 - Post-processing we'll use trjconv tool to strip out coordinates, correct for periodicity, or manually alter the trajectory (time units, frame frequency, etc).
+#e.g - gmx trjconv -s md_0_1.tpr -f md_0_1.xtc -o md_0_1_noPBC.xtc -pbc mol -center
+echo 'Protein System' | $GMX trjconv -s $PROD_MD_FILE_NAME".tpr" -f $PROD_MD_FILE_NAME".xtc" -o $PROD_MD_FILE_NAME"_noPBC.xtc" -pbc mol -center 
+
+#STEP 8.2 - We will conduct all our analyses on this "corrected" trajectory. Let's look at structural stability first. GROMACS has a built-in utility for RMSD calculations called rms. To use rms, issue this command:
+#e.g - gmx rms -s md_0_1.tpr -f md_0_1_noPBC.xtc -o rmsd.xvg -tu ns
+echo 'Backbone' | $GMX rms -s $PROD_MD_FILE_NAME".tpr" -f $PROD_MD_FILE_NAME"_noPBC.xtc" -o $RMSD_RESULT_FILE_NAME".xvg" -tu ns 
+
+#The output plot will show the RMSD relative to the structure present in the minimized, equilibrated system:
+
+#If we wish to calculate RMSD relative to the crystal structure, we could issue the following:
+#STEP 8.3 - If we wish to calculate RMSD relative to the crystal structure, we could issue the following:
+#e.g - gmx rms -s em.tpr -f md_0_1_noPBC.xtc -o rmsd_xtal.xvg -tu ns
+echo 'Backbone' | $GMX rms -s $ENERGY_MINIMIZATION_FILE_NAME".tpr" -f $PROD_MD_FILE_NAME"_noPBC.xtc" -o $RMSD_RESULT_FILE_NAME"_xtal.xvg" -tu ns 
+
+
+
+
+#STEP 8.4 - Compute/Plot the Radius of Gyration
+#The radius of gyration of a protein is a measure of its compactness. If a protein is stably folded, it will likely maintain a relatively steady value of Rg. If a protein unfolds, its Rg will change over time. Let's analyze the radius of gyration for lysozyme in our simulation:
+#e.g gmx gyrate -s md_0_1.tpr -f md_0_1_noPBC.xtc -o gyrate.xvg
+echo 'Protein' | $GMX gyrate -s $PROD_MD_FILE_NAME".tpr" -f $PROD_MD_FILE_NAME"_noPBC.xtc" -o $RADIUS_OF_GYRATION_RESULT_FILE_NAME".xvg"
+
+
+
 
 
 
